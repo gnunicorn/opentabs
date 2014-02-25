@@ -1,0 +1,35 @@
+{
+ "name": "total due",
+ "children": [
+  {
+   "name": "alex",
+   "children": [
+    {
+     "name": "clubbing",
+     "size": 100.00
+    },
+    {
+     "name": "burger",
+     "size": 35.75
+    },
+    {
+     "name": "coffee",
+     "size": 12.5
+    }
+   ]
+  },
+  {
+   "name": "miho",
+   "children": [
+    {"name": "cake", "size": 12},
+    {"name": "drinks", "size": 120}
+   ]
+  },
+  {
+   "name": "Amelie",
+   "children": [
+    {"name": "presents", "size": 4}
+   ]
+  }
+ ]
+}

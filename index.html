@@ -14,6 +14,17 @@
 
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.4.2/pure-min.css">
 
+    <style type="text/css" media="screen">
+      body {
+        background: #333;
+        color: white;
+      }
+
+      .name {
+        fill: white;
+      }
+    </style>
+
   </head>
   <body>
 
@@ -89,21 +100,32 @@ var force = d3.layout.force()
 force.start();
 
 var svg = d3.select("body").append("svg")
+    .attr("fill", "#333")
     .attr("width", width)
     .attr("height", height);
 
 svg.selectAll("g")
     .data(nodes)
   .enter().append("g")
+    .attr("class", "person")
+    .on("click", function(d) { return zoom(focus === d ? false: d ); })
     .append("circle")
+      .attr("class", "total")
       .attr("r", function(d) { return d.radius; })
       .style("fill", function(d, i) { return color(i % 3); })
-      .on("click", function(d) { return zoom(focus === d ? false: d ); });
+      ;
 
-svg.selectAll("g")
+svg.selectAll(".person")
   .append("text")
-    .attr("class", "label")
+    .attr("class", "name")
+    .attr("text-anchor", "middle")
     .text(function(d) { return d.name; });
+
+// svg.selectAll(".person")
+//   .append("text")
+//     .attr("class", "amount")
+//     .attr("text-anchor", "middle")
+//     .text(function(d) { return d.amount; });
 
 force.on("tick", function(e) {
   var q = d3.geom.quadtree(nodes),
@@ -124,7 +146,8 @@ force.on("tick", function(e) {
 // });
 
 function zoom(d, i) {
-  var k = 1; 
+  var k = 1, reset,
+      transition = d3.selectAll("g").transition();
 
   focus = d;
 
@@ -134,19 +157,31 @@ function zoom(d, i) {
     k = smallestLength / d.radius / 2;
     xScale.domain([d.x - d.radius, d.x + d.radius]);
     yScale.domain([d.y - d.radius, d.y + d.radius]);
+
+    transition.select(".name")
+      .duration(d3.event.altKey ? 7500 : 750)
+      .attr("transform", function(d) { return "translate(0, -" + Math.abs(d.radius * k - 30) + ")"; })
+      .attr("font-size", "22px");
   } else {
+    reset = true;
     xScale.domain([0, width]);
     yScale.domain([0, height]);
+
+    transition.select(".name")
+      .duration(d3.event.altKey ? 7500 : 750)
+      .attr("font-size", "14px")
+      .attr("transform", function(d) { return "translate(0, 0)"; });
   }
 
   d3.event.stopPropagation();
 
-  var transition = d3.selectAll("g").transition()
-      .duration(d3.event.altKey ? 7500 : 750)
+  
+  transition.duration(d3.event.altKey ? 7500 : 750)
       .attr("transform", function(d) { return "translate(" + xScale(d.x) + "," + yScale(d.y) + ")"; });
 
-  transition.select("circle")
+  transition.select(".total")
       .attr("r", function(d) { return k * d.radius; });
+
   return transition;
 }
 

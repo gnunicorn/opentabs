@@ -13,129 +13,138 @@
     <meta name="mobile-web-app-capable" content="yes">
 
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.4.2/pure-min.css">
-    <style>
 
-.node {
-  cursor: pointer;
-}
-
-.node:hover {
-  stroke: #000;
-  stroke-width: 1.5px;
-}
-
-.node--root {
-  stroke: #777;
-  stroke-width: 2px;
-}
-
-.node--leaf {
-  fill: white;
-}
-
-.label {
-  font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
-  text-anchor: middle;
-  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
-}
-
-.label,
-.node--root,
-.node--leaf {
-  pointer-events: none;
-}
-
-
-      
-    </style>
   </head>
   <body>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.1/d3.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.2/d3.js" type="text/javascript" charset="utf-8"></script>
     <script type="text/javascript">
     </script>
     <script>
-
-var margin = 10,
-    outerDiameter = 960,
-    innerDiameter = outerDiameter - margin - margin;
-
-var x = d3.scale.linear()
-    .range([0, innerDiameter]);
-
-var y = d3.scale.linear()
-    .range([0, innerDiameter]);
-
-var color = d3.scale.linear()
-    .domain([-1, 5])
-    .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
-    .interpolate(d3.interpolateHcl);
-
-var pack = d3.layout.pack()
-    .padding(2)
-    .size([innerDiameter, innerDiameter])
-    .value(function(d) { return d.size; })
-
-var svg = d3.select("body").append("svg")
-    .attr("width", outerDiameter)
-    .attr("height", outerDiameter)
-  .append("g")
-    .attr("transform", "translate(" + margin + "," + margin + ")");
-
-d3.json("flare.json", function(error, root) {
-  if(error){
-    return console.log(error);
+      var DUES = [
+  {
+   "name": "alex",
+   "accounts": [
+    {
+     "name": "clubbing",
+     "amount": 100.00
+    },
+    {
+     "name": "burger",
+     "amount": 35.75
+    },
+    {
+     "name": "coffee",
+     "amount": 12.5
+    }
+   ]
+  },
+  {
+   "name": "miho",
+   "accounts": [
+    {"name": "cake", "amount": 12},
+    {"name": "drinks", "amount": 120}
+   ]
+  },
+  {
+   "name": "Amelie",
+   "accounts": [
+    {"name": "presents", "amount": 4}
+   ]
   }
-  var focus = root,
-      nodes = pack.nodes(root);
+ ];
 
-  svg.append("g").selectAll("circle")
-      .data(nodes)
-    .enter().append("circle")
-      .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
-      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-      .attr("r", function(d) { return d.r; })
-      .style("fill", function(d) { return d.children ? color(d.depth) : null; })
-      .on("click", function(d) { return zoom(focus == d ? root : d); });
-
-  svg.append("g").selectAll("text")
-      .data(nodes)
-    .enter().append("text")
-      .attr("class", "label")
-      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
-      .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
-      .style("display", function(d) { return d.parent === root ? null : "none"; })
-      .text(function(d) { return d.name; });
-
-  d3.select(window)
-      .on("click", function() { zoom(root); });
-
-  function zoom(d, i) {
-    var focus0 = focus;
-    focus = d;
-
-    var k = innerDiameter / d.r / 2;
-    x.domain([d.x - d.r, d.x + d.r]);
-    y.domain([d.y - d.r, d.y + d.r]);
-    d3.event.stopPropagation();
-
-    var transition = d3.selectAll("text,circle").transition()
-        .duration(d3.event.altKey ? 7500 : 750)
-        .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
-
-    transition.filter("circle")
-        .attr("r", function(d) { return k * d.r; });
-
-    transition.filter("text")
-      .filter(function(d) { return d.parent === focus || d.parent === focus0; })
-        .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
-        .each("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
-        .each("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
-  }
+DUES.forEach(function(item){
+  item.amount = 0;
+  item.accounts.forEach(function(acc){
+    item.amount += acc.amount;
+  });
 });
 
-d3.select(self.frameElement).style("height", outerDiameter + "px");
+    </script>
+    <script>
+
+  var width = Math.max(document.documentElement.clientWidth, window.innerWidth || 100),
+      height = Math.max(document.documentElement.clientHeight, window.innerHeight || 100),
+      maxVal = Math.max.apply(Math, DUES.map(function(x) {return x.amount;})),
+      smallestLength = Math.min(width, height),
+      radiusCorrection =  smallestLength / DUES.length / maxVal / 2,
+      nodes = DUES.map(function(x) {
+        x.radius = x.amount * radiusCorrection;
+        return x
+      });
+      color = d3.scale.category20c();
+
+
+var force = d3.layout.force()
+    .gravity(0.05)
+//    .charge(function(d, i) { return -d.value * radiusCorrection; })
+    .nodes(nodes)
+    .size([width, height]);
+
+force.start();
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+svg.selectAll("g")
+    .data(nodes)
+  .enter().append("g")
+    .append("circle")
+      .attr("r", function(d) { return d.radius; })
+      .style("fill", function(d, i) { return color(i % 3); })
+
+svg.selectAll("g")
+  .append("text")
+    .attr("class", "label")
+    .text(function(d) { return d.name; });
+
+force.on("tick", function(e) {
+  var q = d3.geom.quadtree(nodes),
+      i = 0,
+      n = nodes.length;
+
+  while (++i < n) q.visit(collide(nodes[i]));
+
+  svg.selectAll("g")
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+});
+
+// svg.on("mousemove", function() {
+//   var p1 = d3.mouse(this);
+//   root.px = p1[0];
+//   root.py = p1[1];
+//   force.resume();
+// });
+
+function collide(node) {
+  var r = node.radius + 16,
+      nx1 = node.x - r,
+      nx2 = node.x + r,
+      ny1 = node.y - r,
+      ny2 = node.y + r;
+  return function(quad, x1, y1, x2, y2) {
+    if (quad.point && (quad.point !== node)) {
+      var x = node.x - quad.point.x,
+          y = node.y - quad.point.y,
+          l = Math.sqrt(x * x + y * y),
+          r = node.radius + quad.point.radius;
+      if (l < r) {
+        l = (l - r) / l * .5;
+        node.x -= x *= l;
+        node.y -= y *= l;
+        quad.point.x += x;
+        quad.point.y += y;
+      }
+    }
+    return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+  };
+}
 
 </script>
+
+
   </body>
 </html>
+

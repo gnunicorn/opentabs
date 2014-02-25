@@ -19,8 +19,10 @@
         background: #333;
         color: white;
       }
-
-      .name {
+      
+      .pie text,
+      .person .amount,
+      .person .name {
         fill: white;
       }
     </style>
@@ -84,7 +86,8 @@ DUES.forEach(function(item){
         x.radius = x.amount * radiusCorrection;
         return x
       }),
-      color = d3.scale.category20c(),
+      bubbleColor = d3.scale.category20c(),
+      donutColor = d3.scale.category10(),
       xScale = d3.scale.linear().range([0, width]),
       yScale = d3.scale.linear().range([0, height]),
       focus
@@ -96,6 +99,14 @@ var force = d3.layout.force()
 //    .charge(function(d, i) { return -d.value * radiusCorrection; })
     .nodes(nodes)
     .size([width, height]);
+
+var arc = d3.svg.arc()
+    .outerRadius(smallestLength * 0.4)
+    .innerRadius(smallestLength * 0.25);
+
+var pie = d3.layout.pie()
+    .sort(null)
+    .value(function(d) { return d.amount; });
 
 force.start();
 
@@ -112,20 +123,28 @@ svg.selectAll("g")
     .append("circle")
       .attr("class", "total")
       .attr("r", function(d) { return d.radius; })
-      .style("fill", function(d, i) { return color(i % 3); })
+      .style("fill", function(d, i) { return bubbleColor(i % 3); })
       ;
 
 svg.selectAll(".person")
   .append("text")
     .attr("class", "name")
     .attr("text-anchor", "middle")
+    .attr("transform", "translate(0, -10)")
     .text(function(d) { return d.name; });
 
-// svg.selectAll(".person")
-//   .append("text")
-//     .attr("class", "amount")
-//     .attr("text-anchor", "middle")
-//     .text(function(d) { return d.amount; });
+
+svg.append("g")
+    .attr("class","pie")
+    .attr("opacity", 0)
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+svg.selectAll(".person")
+  .append("text")
+    .attr("class", "amount")
+    .attr("text-anchor", "middle")
+    .attr("transform", "translate(0, 10)")
+    .text(function(d) { return d.amount; });
 
 force.on("tick", function(e) {
   var q = d3.geom.quadtree(nodes),
@@ -134,7 +153,7 @@ force.on("tick", function(e) {
 
   while (++i < n) q.visit(collide(nodes[i]));
 
-  svg.selectAll("g")
+  svg.selectAll(".person")
       .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 });
 
@@ -145,38 +164,81 @@ force.on("tick", function(e) {
 //   force.resume();
 // });
 
-function zoom(d, i) {
+function zoom(dataPoint, i) {
   var k = 1, reset,
-      transition = d3.selectAll("g").transition();
+      duration = d3.event.altKey ? 7500 : 750,
+      transition = d3.selectAll(".person").transition();
 
-  focus = d;
+  focus = dataPoint;
 
   force.stop();
 
-  if (d){
-    k = smallestLength / d.radius / 2;
-    xScale.domain([d.x - d.radius, d.x + d.radius]);
-    yScale.domain([d.y - d.radius, d.y + d.radius]);
+  if (dataPoint){
+    k = smallestLength / dataPoint.radius / 2;
+    xScale.domain([dataPoint.x - dataPoint.radius, dataPoint.x + dataPoint.radius]);
+    yScale.domain([dataPoint.y - dataPoint.radius, dataPoint.y + dataPoint.radius]);
 
     transition.select(".name")
-      .duration(d3.event.altKey ? 7500 : 750)
+      .duration(duration)
       .attr("transform", function(d) { return "translate(0, -" + Math.abs(d.radius * k - 30) + ")"; })
       .attr("font-size", "22px");
+
+    transition.select(".amount")
+      .duration(duration)
+      .attr("transform", function(d) { return "translate(0, 0)"; })
+      .attr("font-size", "22px");
+
+
+    // make sure we are clean
+    svg.select(".pie").attr("opacity", 0)
+      .selectAll(".arc").remove();
+
+    var arcS = svg.select(".pie")
+      .selectAll(".arc")
+        .data(pie(dataPoint.accounts))
+      .enter().append("g")
+        .attr("class", "arc");
+
+    arcS.append("path")
+        .attr("d", arc)
+        .style("fill", function(acc) { return donutColor(acc.data.amount); });
+
+    arcS.append("text")
+        .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+        .attr("dy", ".35em")
+        .style("text-anchor", "middle")
+        .text(function(acc) { return acc.data.name +" \n " + acc.data.amount; });
+
+    svg.selectAll(".pie").transition()
+        .delay(duration / 4)
+        .duration(duration)
+        .attr("opacity", 0.9);
+
   } else {
     reset = true;
     xScale.domain([0, width]);
     yScale.domain([0, height]);
 
     transition.select(".name")
-      .duration(d3.event.altKey ? 7500 : 750)
+      .duration(duration)
       .attr("font-size", "14px")
-      .attr("transform", function(d) { return "translate(0, 0)"; });
+      .attr("transform", function(d) { return "translate(0, -10)"; });
+
+    transition.select(".amount")
+      .duration(duration)
+      .attr("font-size", "14px")
+      .attr("transform", function(d) { return "translate(0, 10)"; });
+
+    svg.selectAll(".pie").transition()
+        .duration(duration / 2)
+        .attr("opacity", 0)
+        .selectAll(".arc").remove();
   }
 
   d3.event.stopPropagation();
 
   
-  transition.duration(d3.event.altKey ? 7500 : 750)
+  transition.duration(duration)
       .attr("transform", function(d) { return "translate(" + xScale(d.x) + "," + yScale(d.y) + ")"; });
 
   transition.select(".total")

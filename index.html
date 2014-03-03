@@ -27,10 +27,43 @@
       .person .name {
         fill: white;
       }
+
+      .buttons {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+
+      .buttons button {
+        width: 50px;
+        height: 50px;
+        border-radius: 50px;
+        border: none;
+        background-color: #737CA1;
+        color: white;
+      }
+      .buttons .right {
+        float: right;
+      }
+      .buttons:after {
+        content: "";
+        clear: both;
+      }
+      #back,
+      #del {
+        opacity: 0;
+      }
     </style>
 
   </head>
   <body>
+
+    <div class="buttons">
+      <button id="back">⇠</button>
+      <button id="add" class="right">+</button>
+      <button id="del" class="right">-</button>
+    </div>
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.2/d3.js" type="text/javascript" charset="utf-8"></script>
     <script type="text/javascript">
@@ -78,10 +111,28 @@
       donutColor = d3.scale.category10(),
       xScale = d3.scale.linear().range([0, width]),
       yScale = d3.scale.linear().range([0, height]),
-      focus
-      ;
+      buttonWidth = smallestLength / 6;
+      focus = false;
+
+// BUTTON SETUP
+d3.selectAll("button").style({width: buttonWidth + "px", height: buttonWidth + "px", "font-size": (buttonWidth / 4  ) +"px", "border-radius": buttonWidth + "px"})
+
+d3.select("#back").on("click", function(){zoom(false);});
+
+d3.select("#add").on("click", function() {
+  if(focus){
+    focus.accounts.push({"name": "accounting", "amount": Math.round(Math.random() * 80)})
+      renderPie(focus, 200);
+  } else {
+    DUES.push({"name": "yo", "accounts": []});
+  }
+
+  renderData(DUES);
+
+});
 
 
+// DATA SETUP
 var force = d3.layout.force()
     .gravity(0.05)
     .size([width, height]);
@@ -101,7 +152,7 @@ var pie = d3.layout.pie()
     .sort(null)
     .value(function(d) { return d.amount; });
 
-var people = svg.append("g").attr("class", "people")
+var people = svg.append("g").attr("class", "people");
 
 svg.append("g")
     .attr("class","pie")
@@ -155,7 +206,7 @@ function renderData(new_nodes){
       .attr("transform", "translate(0, 10)")
       .text(function(d) { return d.amount; });
 
-  force.nodes(nodes).start();
+  if(!focus) force.nodes(nodes).start();
 }
 
 renderData(DUES);
@@ -172,12 +223,32 @@ force.on("tick", function(e) {
       .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 });
 
-// svg.on("mousemove", function() {
-//   var p1 = d3.mouse(this);
-//   root.px = p1[0];
-//   root.py = p1[1];
-//   force.resume();
-// });
+function renderPie(dataPoint, duration){
+  // make sure we are clean
+  svg.select(".pie").attr("opacity", 0)
+    .selectAll(".arc").remove();
+
+  var arcS = svg.select(".pie")
+    .selectAll(".arc")
+      .data(pie(dataPoint.accounts))
+    .enter().append("g")
+      .attr("class", "arc");
+
+  arcS.append("path")
+      .attr("d", arc)
+      .style("fill", function(acc) { return donutColor(acc.data.amount); });
+
+  arcS.append("text")
+      .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+      .attr("dy", ".35em")
+      .style("text-anchor", "middle")
+      .text(function(acc) { return acc.data.name +" \n " + acc.data.amount; });
+
+  svg.selectAll(".pie").transition()
+      .delay(duration / 4)
+      .duration(duration)
+      .attr("opacity", 0.9);
+}
 
 function zoom(dataPoint, i) {
   var k = 1, reset,
@@ -203,31 +274,12 @@ function zoom(dataPoint, i) {
       .attr("transform", function(d) { return "translate(0, 0)"; })
       .attr("font-size", "22px");
 
+    renderPie(dataPoint, duration);
 
-    // make sure we are clean
-    svg.select(".pie").attr("opacity", 0)
-      .selectAll(".arc").remove();
-
-    var arcS = svg.select(".pie")
-      .selectAll(".arc")
-        .data(pie(dataPoint.accounts))
-      .enter().append("g")
-        .attr("class", "arc");
-
-    arcS.append("path")
-        .attr("d", arc)
-        .style("fill", function(acc) { return donutColor(acc.data.amount); });
-
-    arcS.append("text")
-        .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
-        .attr("dy", ".35em")
-        .style("text-anchor", "middle")
-        .text(function(acc) { return acc.data.name +" \n " + acc.data.amount; });
-
-    svg.selectAll(".pie").transition()
+    d3.select("#back").transition()
         .delay(duration / 4)
         .duration(duration)
-        .attr("opacity", 0.9);
+        .style({"opacity": 0.9});
 
   } else {
     reset = true;
@@ -248,6 +300,16 @@ function zoom(dataPoint, i) {
         .duration(duration / 2)
         .attr("opacity", 0)
         .selectAll(".arc").remove();
+
+    svg.select("#back").transition()
+        .delay(duration / 4)
+        .duration(duration)
+        .style({"opacity": 0});
+
+    d3.timer(function(){
+      force.start();
+      return true;
+    }, duration * 0.9);
   }
 
   d3.event.stopPropagation();

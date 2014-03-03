@@ -19,7 +19,9 @@
         background: #333;
         color: white;
       }
-      
+      .person {
+        cursor: pointer;
+      }
       .pie text,
       .person .amount,
       .person .name {
@@ -34,8 +36,7 @@
     <script type="text/javascript">
     </script>
     <script>
-      var DUES = [
-  {
+      var DUES = [{
    "name": "alex",
    "accounts": [
     {
@@ -67,25 +68,12 @@
   }
  ];
 
-DUES.forEach(function(item){
-  item.amount = 0;
-  item.accounts.forEach(function(acc){
-    item.amount += acc.amount;
-  });
-});
-
     </script>
     <script>
 
   var width = Math.max(document.documentElement.clientWidth, window.innerWidth || 100),
       height = Math.max(document.documentElement.clientHeight, window.innerHeight || 100),
-      maxVal = Math.max.apply(Math, DUES.map(function(x) {return x.amount;})),
       smallestLength = Math.min(width, height),
-      radiusCorrection =  smallestLength / DUES.length / maxVal / 2,
-      nodes = DUES.map(function(x) {
-        x.radius = x.amount * radiusCorrection;
-        return x
-      }),
       bubbleColor = d3.scale.category20c(),
       donutColor = d3.scale.category10(),
       xScale = d3.scale.linear().range([0, width]),
@@ -96,9 +84,14 @@ DUES.forEach(function(item){
 
 var force = d3.layout.force()
     .gravity(0.05)
-//    .charge(function(d, i) { return -d.value * radiusCorrection; })
-    .nodes(nodes)
     .size([width, height]);
+
+
+var svg = d3.select("body").append("svg")
+    .attr("fill", "#333")
+    .attr("width", width)
+    .attr("height", height);
+
 
 var arc = d3.svg.arc()
     .outerRadius(smallestLength * 0.4)
@@ -108,46 +101,68 @@ var pie = d3.layout.pie()
     .sort(null)
     .value(function(d) { return d.amount; });
 
-force.start();
-
-var svg = d3.select("body").append("svg")
-    .attr("fill", "#333")
-    .attr("width", width)
-    .attr("height", height);
-
-svg.selectAll("g")
-    .data(nodes)
-  .enter().append("g")
-    .attr("class", "person")
-    .on("click", function(d) { return zoom(focus === d ? false: d ); })
-    .append("circle")
-      .attr("class", "total")
-      .attr("r", function(d) { return d.radius; })
-      .style("fill", function(d, i) { return bubbleColor(i % 3); })
-      ;
-
-svg.selectAll(".person")
-  .append("text")
-    .attr("class", "name")
-    .attr("text-anchor", "middle")
-    .attr("transform", "translate(0, -10)")
-    .text(function(d) { return d.name; });
-
+var people = svg.append("g").attr("class", "people")
 
 svg.append("g")
     .attr("class","pie")
     .attr("opacity", 0)
     .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 
-svg.selectAll(".person")
-  .append("text")
-    .attr("class", "amount")
+function prepareData(data){
+  var maxVal = 0,
+      nodes = data.map(function(item) {
+          item.amount = 0;
+          item.accounts.forEach(function(acc){
+              item.amount += acc.amount;
+            });
+          if (item.amount > maxVal) {
+            maxVal = item.amount;
+          }
+          return item;
+      }),
+      radiusCorrection = smallestLength / nodes.length / maxVal / 2;
+  return nodes.map(function(node){
+      node.radius = node.amount * radiusCorrection;
+      return node;
+    });
+}
+
+function renderData(new_nodes){
+  var nodes = prepareData(new_nodes),
+      nodes_data = people.selectAll("g").data(nodes);
+
+  nodes_data.enter().append("g")
+    .attr("class", "person")
+  nodes_data.exit().remove()
+
+  nodes_data
+    .on("click", function(d) { return zoom(focus === d ? false: d ); })
+    .append("circle")
+      .attr("class", "total")
+      .attr("r", function(d) { return d.radius || 0; })
+      .style("fill", function(d, i) { return bubbleColor(i % 3); })
+      ;
+
+  nodes_data.append("text")
+    .attr("class", "name")
     .attr("text-anchor", "middle")
-    .attr("transform", "translate(0, 10)")
-    .text(function(d) { return d.amount; });
+    .attr("transform", "translate(0, -10)")
+    .text(function(d) { return d.name; });
+
+  nodes_data.append("text")
+      .attr("class", "amount")
+      .attr("text-anchor", "middle")
+      .attr("transform", "translate(0, 10)")
+      .text(function(d) { return d.amount; });
+
+  force.nodes(nodes).start();
+}
+
+renderData(DUES);
 
 force.on("tick", function(e) {
-  var q = d3.geom.quadtree(nodes),
+  var nodes = force.nodes(),
+      q = d3.geom.quadtree(nodes),
       i = 0,
       n = nodes.length;
 
@@ -237,7 +252,6 @@ function zoom(dataPoint, i) {
 
   d3.event.stopPropagation();
 
-  
   transition.duration(duration)
       .attr("transform", function(d) { return "translate(" + xScale(d.x) + "," + yScale(d.y) + ")"; });
 
@@ -270,6 +284,7 @@ function collide(node) {
     return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
   };
 }
+
 
 </script>
 

@@ -134,7 +134,9 @@ d3.select("#add").on("click", function() {
 
 // DATA SETUP
 var force = d3.layout.force()
-    .gravity(0.05)
+    //.gravity(.05)
+    //.distance(100)
+    .charge(-100)
     .size([width, height]);
 
 
@@ -172,6 +174,7 @@ function prepareData(data){
           return item;
       }),
       radiusCorrection = smallestLength / nodes.length / maxVal / 2;
+  force.charge( -10 * radiusCorrection);
   return nodes.map(function(node){
       node.radius = node.amount * radiusCorrection;
       return node;
@@ -184,7 +187,6 @@ function renderData(new_nodes){
 
   nodes_data.enter().append("g")
     .attr("class", "person")
-  nodes_data.exit().remove()
 
   nodes_data
     .on("click", function(d) { return zoom(focus === d ? false: d ); })
@@ -205,6 +207,8 @@ function renderData(new_nodes){
       .attr("text-anchor", "middle")
       .attr("transform", "translate(0, 10)")
       .text(function(d) { return d.amount; });
+
+  nodes_data.exit().remove()
 
   if(!focus) force.nodes(nodes).start();
 }
@@ -301,7 +305,7 @@ function zoom(dataPoint, i) {
         .attr("opacity", 0)
         .selectAll(".arc").remove();
 
-    svg.select("#back").transition()
+    d3.select("#back").transition()
         .delay(duration / 4)
         .duration(duration)
         .style({"opacity": 0});
